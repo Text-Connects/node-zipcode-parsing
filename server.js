@@ -18,7 +18,18 @@ app.get(`/api/:state/:zipcode`, (req, res) => {
     const matchFound = zipcodeData.find(data => data.stusps_code === state && data.zip_code === zipcode)
 
     if (matchFound) {
-        res.json(matchFound)
+        const filteredData = {
+            city: matchFound.usps_city,
+            country: "US",
+            county: matchFound.primary_coty_name,
+            state: matchFound.ste_name,
+            state_short: matchFound.stusps_code,
+            postal_code: matchFound.zip_code,
+            latitude: matchFound.geo_point_2d.lat,
+            longitude: matchFound.geo_point_2d.lon,
+            timezone: matchFound.timezone
+        }
+        res.json(filteredData)
     } else {
         res.status(404).json({ error: `Not found :(`})
     }
