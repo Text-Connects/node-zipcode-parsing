@@ -11,11 +11,15 @@ const zipcodeData = JSON.parse(fs.readFileSync(dataPath, "utf-8"))
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-app.get(`/api/:state/:zipcode`, (req, res) => {
-    const state = req.params.state
-    const zipcode = req.params.zipcode
+const removeLeadingZero = str => str.replace(/^0+/, "")
 
-    const matchFound = zipcodeData.find(data => data.stusps_code === state && data.zip_code === zipcode)
+//Example: http://localhost:3000/api/us/10580
+app.get(`/api/US/:zipcode`, (req, res) => {
+    let zipcode = req.params.zipcode
+
+    zipcode = removeLeadingZero(zipcode)
+
+    const matchFound = zipcodeData.find(data => data.zip_code === zipcode)
 
     if (matchFound) {
         const filteredData = {
@@ -24,7 +28,7 @@ app.get(`/api/:state/:zipcode`, (req, res) => {
             county: matchFound.primary_coty_name,
             state: matchFound.ste_name,
             state_short: matchFound.stusps_code,
-            postal_code: matchFound.zip_code,
+            postal_code: req.params.zipcode,
             latitude: matchFound.geo_point_2d.lat,
             longitude: matchFound.geo_point_2d.lon,
             timezone: matchFound.timezone
@@ -35,23 +39,34 @@ app.get(`/api/:state/:zipcode`, (req, res) => {
     }
 })
 
+//Example: http://localhost:3000/api/us?city=Woodstock&state=CT
+//Example: http://localhost:3000/api/us?city=Pismo%20Beach&state=CA
+app.get(`/api/US`, (req, res) => {
+    const city = req.query.city
+    const state = req.query.state
+
+    const cityStateData = zipcodeData
+        .filter(data => data.usps_city === city && data.stusps_code === state)
+        .map(data => ({
+            city: data.usps_city,
+            country: "US",
+            county: data.primary_coty_name,
+            state: data.ste_name,
+            state_short: data.stusps_code,
+            postal_code: data.zip_code.length < 5 ? `0${data.zip_code}` : data.zip_code,
+            latitude: data.geo_point_2d.lat,
+            longitude: data.geo_point_2d.lon,
+            timezone: data.timezone
+        }))
+
+    if (cityStateData) {
+        res.json(cityStateData)
+    } else {
+        res.status(404).json({ error: `Not found :(`})
+    }
+})
+
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`)
 })
 
-
-// const API_URL = "http://documentation-resources.opendatasoft.com"
-
-// app.use(express.json())
-
-// app.get(`/api/:${state}/:${zipcode}`, async (req, res) => {
-//     try{
-//         const data = req.params.state + req.params.zipcode
-//         const apiResponse = await fetch(API_URL)
-//         const jsonData = await apiResponse.json()
-//         res.json(data, jsonData)
-//     } catch(error) {
-//         console.error(`Couldn't fetch from API: ${error}`)
-//         res.status(500).json({ error: `internal server error`})
-//     }
-// })
